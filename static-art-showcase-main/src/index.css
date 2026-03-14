@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 270 30% 97%;
+    --foreground: 260 20% 16%;
+
+    --card: 270 25% 99%;
+    --card-foreground: 260 20% 16%;
+
+    --popover: 270 25% 99%;
+    --popover-foreground: 260 20% 16%;
+
+    --primary: 340 75% 62%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 60% 92%;
+    --secondary-foreground: 210 40% 30%;
+
+    --muted: 270 20% 93%;
+    --muted-foreground: 260 10% 50%;
+
+    --accent: 170 55% 60%;
+    --accent-foreground: 170 60% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 270 18% 90%;
+    --input: 270 18% 90%;
+    --ring: 340 75% 62%;
+
+    --radius: 1rem;
+
+    --overlay: 260 20% 16% / 0.55;
+    --overlay-blur: 20px;
+
+    --pastel-pink: 340 80% 88%;
+    --pastel-blue: 210 70% 90%;
+    --pastel-mint: 170 50% 88%;
+    --pastel-lavender: 270 50% 90%;
+    --pastel-peach: 20 80% 90%;
+    --pastel-yellow: 48 80% 90%;
+
+    --shadow-card: 0 2px 8px 0 hsl(270 20% 50% / 0.06), 0 12px 32px -8px hsl(270 20% 50% / 0.1);
+    --shadow-card-hover: 0 8px 24px 0 hsl(340 75% 62% / 0.1), 0 20px 48px -12px hsl(270 20% 50% / 0.15);
+
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
