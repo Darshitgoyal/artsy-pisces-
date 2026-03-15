@@ -21,7 +21,7 @@ export function GalleryFooter() {
               About Me
             </p>
 <h3 className="text-foreground text-3xl md:text-4xl font-medium italic leading-snug max-w-lg">
-"Art is my language, and color is my vocabulary. I am <strong>Khushi</strong>,
+"Art is my language, and color is my vocabulary". I am <strong>Khushi</strong>,
             </h3>
             <p className="text-foreground mt-6 max-w-md leading-relaxed text-sm">
               a contemporary artist dedicated to showcasing a systematic perspective of the world through my work. Every piece in this gallery is accompanied by a personal thought—a window into the moment the art was born. Explore the collection, find a quote that speaks to you, and feel free to reach out.
@@ -57,7 +57,7 @@ export function GalleryFooter() {
           className="text-muted-foreground text-xs mt-8"
           style={{ fontFamily: "var(--font-mono)" }}
         >
-          @2026 All rights are reserved by Darshit
+          @2026 All rights are reserved by Darshit goyal.
         </p>
       </div>
     </footer>
