@@ -58,6 +58,7 @@ export function GalleryFooter() {
           style={{ fontFamily: "var(--font-mono)" }}
         >
           @2026 All rights are reserved by Darshit goyal.
+          happy birthday khusshiiiiiiiiiiii........
         </p>
       </div>
     </footer>
