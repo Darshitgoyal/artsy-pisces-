@@ -1,85 +1,70 @@
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Heart, Quote, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 import type { Artwork } from "@/data/artworks";
-
-const transition = { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const };
-
-const pastelBgs = [
-  "bg-pastel-pink",
-  "bg-pastel-blue",
-  "bg-pastel-mint",
-  "bg-pastel-lavender",
-  "bg-pastel-peach",
-  "bg-pastel-yellow",
-];
+import { Card, CardContent } from "@/components/ui/card";
 
 interface GalleryCardProps {
-  art: Artwork;
-  index: number;
-  onClick: () => void;
+  artwork: Artwork;
+  onImageClick?: (artwork: Artwork) => void;
 }
 
-export function GalleryCard({ art, index, onClick }: GalleryCardProps) {
-  const bg = pastelBgs[index % pastelBgs.length];
+export default function GalleryCard({ artwork, onImageClick }: GalleryCardProps) {
+  const { addToCart, cart } = useCart();
+  const isInCart = cart.some((item) => item.id === artwork.id);
 
   return (
     <motion.div
-      className="group cursor-pointer"
-      whileHover="hover"
-      initial="initial"
-      onClick={onClick}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -8 }}
+      transition={{ duration: 0.3 }}
+      className="group"
     >
-      <div
-        className={`relative overflow-hidden rounded-2xl ${bg} p-3`}
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
-        <motion.div
-          variants={{ initial: { scale: 1 }, hover: { scale: 1.03 } }}
-          transition={transition}
-          className="aspect-[4/5] w-full overflow-hidden rounded-xl"
-        >
+      <Card className="h-full overflow-hidden bg-card border-border shadow-lg hover:shadow-2xl transition-all duration-500 group-hover:border-primary/50">
+<div className="relative h-96 overflow-hidden bg-muted">
           <img
-            src={art.imagePath}
-            alt={art.title}
-            className="h-full w-full object-cover"
+            src={artwork.imagePath}
+            alt={artwork.title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-pointer"
             loading="lazy"
+            onClick={() => onImageClick?.(artwork)}
           />
-        </motion.div>
-
-        {/* Hover quote overlay */}
-        <motion.div
-          variants={{
-            initial: { opacity: 0 },
-            hover: { opacity: 1 },
-          }}
-          transition={transition}
-          className="absolute inset-3 flex items-end rounded-xl bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent p-6"
-        >
-          <motion.p
-            variants={{
-              initial: { y: 16, opacity: 0 },
-              hover: { y: 0, opacity: 1 },
-            }}
-            transition={{ ...transition, delay: 0.08 }}
-            className="text-primary-foreground text-base leading-snug italic"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            "{art.myQuote}"
-          </motion.p>
-        </motion.div>
-      </div>
-
-      {/* Caption */}
-      <div className="px-2 mt-4">
-        <p className="text-foreground font-medium text-sm tracking-wide">
-          {art.title}
-        </p>
-        <p
-          className="text-muted-foreground text-xs mt-1 uppercase tracking-widest"
-          style={{ fontFamily: "var(--font-mono)" }}
-        >
-          {art.category}
-        </p>
-      </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end p-6">
+            <div className="text-white w-full">
+              <p className="opacity-90 text-sm leading-tight mb-2 font-medium line-clamp-2">
+                "{artwork.myQuote}"
+              </p>
+              <Badge variant="secondary" className="mb-3">
+                {artwork.category}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        
+        <CardContent className="p-4 pt-2">
+          <div className="space-y-3">
+            <h3 className="font-semibold text-base leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+              {artwork.title}
+            </h3>
+            
+            <div className="flex justify-center">
+              <Button
+                variant={isInCart ? "secondary" : "default"}
+                size="sm"
+                onClick={() => addToCart(artwork)}
+                className="gap-1.5 shadow"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {isInCart ? "Added" : "Add to Cart"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }
+
