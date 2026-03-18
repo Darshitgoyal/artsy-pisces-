@@ -59,7 +59,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     if (cart.length === 0) return;
     const body = cart.map(item => `- ${item.title} (Art ID: ${item.id})`).join('\n');
     const subject = `Art Purchase - ${cart.length} items`;
-    const mailto = `mailto:darshtigoyal4@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailto = `mailto:darshitgoyal4@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailto;
     clearCart();
   };
