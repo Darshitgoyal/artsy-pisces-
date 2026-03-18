@@ -57,7 +57,7 @@ export function GalleryFooter() {
           className="text-muted-foreground text-xs mt-8"
           style={{ fontFamily: "var(--font-mono)" }}
         >
-          @2026 All rights are reserved by master khushi.
+          @2026 All rights are reserved by darshit goyal.
          
         </p>
       </div>
