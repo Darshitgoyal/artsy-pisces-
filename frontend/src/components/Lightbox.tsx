@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import type { Artwork } from "@/data/artworks";
+import type { Artwork } from "@/components/GalleryCard";
 import { X } from "lucide-react";
 
 interface LightboxProps {
@@ -39,7 +39,7 @@ export function Lightbox({ art, onClose }: LightboxProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={art.imagePath}
+              src={art.image_url}
               alt={art.title}
               className="w-full max-h-[70vh] object-contain rounded-lg"
               style={{ boxShadow: "0 24px 80px -16px rgba(0,0,0,0.4)" }}
@@ -61,7 +61,7 @@ export function Lightbox({ art, onClose }: LightboxProps) {
                 className="text-background/80 text-lg italic"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                "{art.myQuote}"
+                "{art.my_quote}"
               </p>
             </div>
           </motion.div>
