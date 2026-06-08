@@ -1,0 +1,39 @@
+{
+  "name": "artsy-pisces-backend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^1.41.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "pg": "^8.21.0",
+    "razorpay": "^2.9.5",
+    "zod": "^3.25.76"
+  },
+  "description": "this is backend part",
+  "repository": {
+    "url": "git+https://github.com/Darshitgoyal/artsy-pisces-.git"
+  },
+  "keywords": [
+    "art"
+  ],
+  "author": "darshit",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Darshitgoyal/artsy-pisces-/issues"
+  },
+  "homepage": "https://github.com/Darshitgoyal/artsy-pisces-#readme",
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
