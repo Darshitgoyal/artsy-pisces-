@@ -8,6 +8,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import Checkout from "@/pages/user/checkout";
+import OrderHistory from "@/pages/user/OrderHistory";
+import OrderDetail from "@/pages/user/Orderdetail";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
 
@@ -26,11 +29,12 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
 
-                {/* User protected — we'll add these in Phase 3 */}
-                {/* <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} /> */}
-                {/* <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} /> */}
+                {/* User protected */}
+                <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+                <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
 
-                {/* Admin protected — we'll add these in Phase 4 */}
+                {/* Admin — Phase 4 */}
                 {/* <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} /> */}
 
                 <Route path="*" element={<NotFound />} />
