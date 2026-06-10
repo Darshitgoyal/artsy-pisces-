@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface Artwork {
   id: string;
@@ -24,6 +23,7 @@ interface Artwork {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const [artworks, setArtworks]     = useState<Artwork[]>([]);
   const [loadingArt, setLoadingArt] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,7 +111,7 @@ const Index = () => {
                     </div>
 
                     <div className="space-y-3">
-                      <Button className="w-full" onClick={() => window.location.href = '/checkout'}>
+                      <Button className="w-full" onClick={() => navigate('/checkout')}>
                         Proceed to Checkout
                       </Button>
                       <Button variant="outline" onClick={clearCart} className="w-full">
