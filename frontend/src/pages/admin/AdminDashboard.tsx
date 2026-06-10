@@ -412,6 +412,20 @@ export default function AdminDashboard() {
     .filter(o => o.payment_status === 'paid')
     .reduce((sum, o) => sum + Number(o.final_amount), 0);
 
+  const netProfit = orders.reduce((sum, o) => {
+    const amount = Number(o.final_amount || 0);
+    if (o.payment_status === 'paid') {
+      return sum + amount;
+    } else if (o.payment_status === 'refunded') {
+      if (o.order_status === 'cancelled') {
+        return sum; // cancel and refund: no profit, no loss (0)
+      } else {
+        return sum - amount; // any other step refund: loss (-amount)
+      }
+    }
+    return sum; // pending/failed: 0
+  }, 0);
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
       
@@ -496,7 +510,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Stats Cards Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
                 <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm flex items-center gap-4">
                   <div className="p-4 bg-green-50 text-green-600 rounded-xl">
                     <TrendingUp className="h-6 w-6" />
@@ -504,6 +518,18 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Revenue Collected</p>
                     <p className="text-2xl font-extrabold text-slate-800">₹{revenueTotal.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm flex items-center gap-4">
+                  <div className={`p-4 rounded-xl ${netProfit >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                    <TrendingUp className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Net Profit / Loss</p>
+                    <p className={`text-2xl font-extrabold ${netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {netProfit >= 0 ? '₹' : '-₹'}{Math.abs(netProfit).toLocaleString('en-IN')}
+                    </p>
                   </div>
                 </div>
 
