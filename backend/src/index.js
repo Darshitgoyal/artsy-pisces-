@@ -12,7 +12,13 @@ const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: 'http://localhost:5173', // your Vite frontend URL
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin === process.env.CLIENT_ORIGIN) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json());

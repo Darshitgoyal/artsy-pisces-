@@ -49,7 +49,7 @@ const Index = () => {
   }, [searchTerm, artworks]);
 
   // Calculate cart total
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price || 0), 0);
+  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
   return (
     <div>

@@ -11,6 +11,7 @@ import Signup from "@/pages/Signup";
 import Checkout from "@/pages/user/checkout";
 import OrderHistory from "@/pages/user/OrderHistory";
 import OrderDetail from "@/pages/user/Orderdetail";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
 
@@ -35,7 +36,7 @@ function App() {
                 <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
 
                 {/* Admin — Phase 4 */}
-                {/* <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} /> */}
+                <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>

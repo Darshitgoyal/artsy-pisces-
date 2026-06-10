@@ -34,7 +34,7 @@ export default function Checkout() {
   const [loading, setLoading]         = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
 
-  const subtotal   = cart.reduce((sum, item) => sum + item.price, 0);
+  const subtotal   = cart.reduce((sum, item) => sum + Number(item.price || 0), 0);
   const finalTotal = Math.max(0, subtotal - discount);
 
   // Redirect to gallery if cart is empty

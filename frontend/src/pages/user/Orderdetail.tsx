@@ -36,6 +36,7 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'summary' | 'tracking'>('summary');
 
   useEffect(() => {
     if (!id) return;
@@ -47,7 +48,7 @@ export default function OrderDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
@@ -61,7 +62,7 @@ export default function OrderDetail() {
     <div className="min-h-screen bg-background">
       <div className="border-b px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <button onClick={() => navigate('/orders')} className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-1">
+          <button onClick={() => navigate('/orders')} className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors">
             <ArrowLeft className="h-4 w-4" /> My Orders
           </button>
           <span className="text-muted-foreground">/</span>
@@ -69,102 +70,146 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
+        
+        {/* Sleek Custom Tabs */}
+        <div className="flex border-b border-border bg-card/50 backdrop-blur rounded-t-xl p-1 gap-1">
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'summary'
+                ? 'bg-primary text-primary-foreground shadow-lg'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            📋 Order Summary
+          </button>
+          <button
+            onClick={() => setActiveTab('tracking')}
+            className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'tracking'
+                ? 'bg-primary text-primary-foreground shadow-lg'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            📍 Track Order
+          </button>
+        </div>
 
-        {/* Order Status Tracker */}
-        <section className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="font-semibold text-lg mb-6">Order Status</h2>
-          {order.order_status === 'cancelled' ? (
-            <div className="text-center py-4 text-red-500 font-medium">This order has been cancelled.</div>
-          ) : (
-            <div className="relative">
-              {/* Progress line */}
-              <div className="absolute top-5 left-5 right-5 h-0.5 bg-muted" />
-              <div
-                className="absolute top-5 left-5 h-0.5 bg-primary transition-all duration-700"
-                style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-              />
-              {/* Steps */}
-              <div className="relative flex justify-between">
+        {activeTab === 'tracking' ? (
+          /* TRACKING VIEW */
+          <section className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-xl">Order Status Tracker</h2>
+              <span className="text-xs text-muted-foreground">Managed by Admin</span>
+            </div>
+
+            {order.order_status === 'cancelled' ? (
+              <div className="text-center py-8 text-red-500 font-semibold border-2 border-dashed border-red-200 rounded-xl bg-red-50/50">
+                This order has been cancelled.
+              </div>
+            ) : (
+              <div className="relative pl-8 border-l border-muted space-y-8 py-2 ml-4">
                 {STEPS.map((step, index) => {
-                  const done    = index <= currentStep;
+                  const done = index <= currentStep;
                   const current = index === currentStep;
                   return (
-                    <div key={step} className="flex flex-col items-center gap-2">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all z-10 ${
+                    <div key={step} className="relative">
+                      {/* Step Indicator Dot */}
+                      <div className={`absolute -left-[43px] top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
                         done
-                          ? 'bg-primary border-primary text-primary-foreground'
+                          ? 'bg-primary border-primary text-primary-foreground shadow-md'
                           : 'bg-background border-muted text-muted-foreground'
-                      } ${current ? 'ring-4 ring-primary/20' : ''}`}>
+                      } ${current ? 'ring-4 ring-primary/20 scale-110' : ''}`}>
                         {stepIcon(step)}
                       </div>
-                      <span className={`text-xs font-medium capitalize text-center ${done ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {step}
-                      </span>
+
+                      {/* Step Text Info */}
+                      <div className="pl-2">
+                        <h3 className={`font-semibold capitalize text-base ${done ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {step}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {current 
+                            ? 'Currently in this stage' 
+                            : done 
+                            ? 'Completed' 
+                            : 'Pending processing'}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-        </section>
-
-        {/* Items */}
-        <section className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="font-semibold text-lg mb-4">Items Ordered</h2>
-          <div className="space-y-4">
-            {order.items.map((item: any, i: number) => (
-              <div key={i} className="flex gap-4 items-center">
-                <img src={item.image_url} alt={item.title} className="w-16 h-16 object-cover rounded-lg" />
-                <div className="flex-1">
-                  <p className="font-medium">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                </div>
-                <span className="font-semibold">₹{item.price.toLocaleString('en-IN')}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Delivery Address */}
-        <section className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="font-semibold text-lg mb-3">Delivery Address</h2>
-          {order.address && (
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground">{order.address.name}</p>
-              <p>{order.address.line1}</p>
-              <p>{order.address.city}, {order.address.state} — {order.address.pincode}</p>
-              <p>📞 {order.address.phone}</p>
-            </div>
-          )}
-        </section>
-
-        {/* Payment Summary */}
-        <section className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="font-semibold text-lg mb-4">Payment Summary</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>₹{order.total_amount.toLocaleString('en-IN')}</span>
-            </div>
-            {order.discount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Coupon ({order.coupon_code})</span>
-                <span>−₹{order.discount.toLocaleString('en-IN')}</span>
-              </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Payment</span>
-              <span>{order.payment_method === 'cod' ? 'Cash on Delivery' : 'Online'}</span>
-            </div>
-            <div className="flex justify-between font-bold text-base pt-2 border-t">
-              <span>Total</span>
-              <span className="text-primary">₹{order.final_amount.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          /* SUMMARY VIEW */
+          <div className="space-y-6">
+            {/* Items */}
+            <section className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+              <h2 className="font-semibold text-lg mb-4">Items Ordered</h2>
+              <div className="space-y-4">
+                {order.items.map((item: any, i: number) => (
+                  <div key={i} className="flex gap-4 items-center border-b border-border/50 pb-4 last:border-b-0 last:pb-0">
+                    <img src={item.image_url} alt={item.title} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                    </div>
+                    <span className="font-semibold text-sm">₹{Number(item.price || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-        <Button variant="outline" className="w-full" onClick={() => navigate('/')}>
+            {/* Delivery Address */}
+            <section className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+              <h2 className="font-semibold text-lg mb-3">Delivery Address</h2>
+              {order.address && (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground text-base">{order.address.name}</p>
+                  <p>{order.address.line1}</p>
+                  <p>{order.address.city}, {order.address.state} — {order.address.pincode}</p>
+                  <p className="mt-2 text-foreground/80">📞 {order.address.phone}</p>
+                </div>
+              )}
+            </section>
+
+            {/* Payment Summary */}
+            <section className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+              <h2 className="font-semibold text-lg mb-4">Payment Summary</h2>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>₹{Number(order.total_amount || 0).toLocaleString('en-IN')}</span>
+                </div>
+                {order.discount > 0 && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Coupon ({order.coupon_code})</span>
+                    <span>−₹{Number(order.discount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-3">
+                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="font-medium">{order.payment_method === 'cod' ? '💵 Cash on Delivery' : '💳 Online Payment'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Status</span>
+                  <span className={`font-semibold capitalize ${order.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {order.payment_status}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-lg pt-3 border-t text-foreground">
+                  <span>Total Amount Paid</span>
+                  <span className="text-primary text-xl">₹{Number(order.final_amount || 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        <Button variant="outline" className="w-full h-11" onClick={() => navigate('/')}>
           Continue Shopping
         </Button>
       </div>

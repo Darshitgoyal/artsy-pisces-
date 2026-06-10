@@ -1,14 +1,14 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import type { Artwork } from '@/components/GalleryCard';
+import { useAuth } from '@/contexts/AuthContext';
 
 type CartAction =
   | { type: 'ADD'; payload: Artwork }
   | { type: 'REMOVE'; payload: string }
-  | { type: 'CLEAR' };
+  | { type: 'CLEAR' }
+  | { type: 'SET'; payload: Artwork[] };
 
 type CartState = Artwork[];
-
-const CART_KEY = 'artsy-pisces-cart';
 
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
@@ -18,6 +18,8 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         : [...state, action.payload];
     case 'REMOVE':
       return state.filter((item) => item.id !== action.payload);
+    case 'SET':
+      return action.payload;
     case 'CLEAR':
       return [];
     default:
@@ -35,17 +37,24 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cart, dispatch] = useReducer(cartReducer, [], () => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(CART_KEY);
-      return saved ? JSON.parse(saved) as Artwork[] : [];
-    }
-    return [];
-  });
+  const { user } = useAuth();
+  
+  // Storage key is user-specific, guest cart fallback
+  const cartKey = user ? `artsy-pisces-cart-${user.id}` : 'artsy-pisces-cart-guest';
 
+  const [cart, dispatch] = useReducer(cartReducer, []);
+
+  // Load cart when user changes
   useEffect(() => {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  }, [cart]);
+    const saved = localStorage.getItem(cartKey);
+    const loadedCart = saved ? (JSON.parse(saved) as Artwork[]) : [];
+    dispatch({ type: 'SET', payload: loadedCart });
+  }, [cartKey]);
+
+  // Save cart when items or user changes
+  useEffect(() => {
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+  }, [cart, cartKey]);
 
   const addToCart    = (artwork: Artwork) => dispatch({ type: 'ADD', payload: artwork });
   const removeFromCart = (id: string)    => dispatch({ type: 'REMOVE', payload: id });

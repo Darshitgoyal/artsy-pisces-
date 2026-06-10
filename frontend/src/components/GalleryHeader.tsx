@@ -45,6 +45,13 @@ export function GalleryHeader() {
                   <User className="h-3.5 w-3.5" />
                   {user.name}
                 </span>
+                {user.role === 'admin' && (
+                  <Link to="/admin">
+                    <Button variant="default" size="sm" className="bg-primary hover:bg-primary/95">
+                      Admin Panel
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/orders">
                   <Button variant="outline" size="sm">My Orders</Button>
                 </Link>
