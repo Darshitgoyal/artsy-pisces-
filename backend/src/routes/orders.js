@@ -1,135 +1,130 @@
 const express = require('express');
-const { supabase } = require('../lib/supabase');
+const { pool } = require('../lib/supabase');
 const { authenticate } = require('../middleware/authenticate');
 const { adminOnly } = require('../middleware/adminOnly');
 
 const router = express.Router();
 
-// ─── POST /api/orders ────────────────────────────────────────────────────────
-// User places an order (cart items + address + payment method)
+// ─── POST /api/orders ─────────────────────────────────────────────────────────
 router.post('/', authenticate, async (req, res) => {
   try {
     const {
-      items,           // array: [{ id, title, price, image_url, quantity }]
-      address,         // { name, phone, line1, city, state, pincode }
-      payment_method,  // 'online' | 'cod'
-      coupon_code,
-      total_amount,
-      discount,
-      final_amount,
+      items, address, payment_method,
+      coupon_code, total_amount, discount, final_amount,
     } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!items || items.length === 0)
       return res.status(400).json({ error: 'Cart is empty.' });
-    }
-    if (!address || !payment_method) {
+    if (!address || !payment_method)
       return res.status(400).json({ error: 'Address and payment method are required.' });
-    }
 
-    const { data, error } = await supabase
-      .from('orders')
-      .insert({
-        user_id: req.user.id,
-        items,
-        address,
+    const result = await pool.query(
+      `INSERT INTO orders
+        (user_id, items, address, payment_method, coupon_code,
+         total_amount, discount, final_amount, payment_status, order_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'placed')
+       RETURNING *`,
+      [
+        req.user.id,
+        JSON.stringify(items),
+        JSON.stringify(address),
         payment_method,
-        coupon_code: coupon_code || null,
+        coupon_code || null,
         total_amount,
-        discount: discount || 0,
+        discount || 0,
         final_amount,
-        payment_status: payment_method === 'cod' ? 'pending' : 'pending',
-        order_status: 'placed',
-      })
-      .select()
-      .single();
+      ]
+    );
 
-    if (error) throw error;
+    const order = result.rows[0];
 
-    // If coupon was used, increment its used_count
+    // Increment coupon usage if one was applied
     if (coupon_code) {
-      await supabase.rpc('increment_coupon_use', { coupon_code_input: coupon_code });
+      await pool.query(
+        'UPDATE coupons SET used_count = used_count + 1 WHERE code = $1',
+        [coupon_code.toUpperCase()]
+      );
     }
 
-    res.status(201).json({ order: data });
+    res.status(201).json({ order });
   } catch (err) {
     console.error('Create order error:', err);
     res.status(500).json({ error: 'Could not place order.' });
   }
 });
 
-// ─── GET /api/orders/mine ────────────────────────────────────────────────────
-// Logged-in user sees their own orders
+// ─── GET /api/orders/mine ─────────────────────────────────────────────────────
 router.get('/mine', authenticate, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ orders: data });
+    const result = await pool.query(
+      'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json({ orders: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Could not fetch orders.' });
   }
 });
 
-// ─── GET /api/orders ─────────── admin only ───────────────────────────────────
-// Admin sees ALL orders
+// ─── GET /api/orders — admin only ─────────────────────────────────────────────
 router.get('/', authenticate, adminOnly, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, users(name, email)')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ orders: data });
+    const result = await pool.query(
+      `SELECT o.*, u.name as user_name, u.email as user_email
+       FROM orders o
+       JOIN users u ON o.user_id = u.id
+       ORDER BY o.created_at DESC`
+    );
+    res.json({ orders: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Could not fetch orders.' });
   }
 });
 
-// ─── GET /api/orders/:id ─────────────────────────────────────────────────────
+// ─── GET /api/orders/:id ──────────────────────────────────────────────────────
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
+    const result = await pool.query(
+      'SELECT * FROM orders WHERE id = $1',
+      [req.params.id]
+    );
+    const order = result.rows[0];
 
-    if (error || !data) return res.status(404).json({ error: 'Order not found.' });
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
 
     // Users can only see their own orders; admin can see any
-    if (req.user.role !== 'admin' && data.user_id !== req.user.id) {
+    if (req.user.role !== 'admin' && order.user_id !== req.user.id)
       return res.status(403).json({ error: 'Access denied.' });
-    }
 
-    res.json({ order: data });
+    res.json({ order });
   } catch (err) {
     res.status(500).json({ error: 'Server error.' });
   }
 });
 
-// ─── PUT /api/orders/:id/status ─ admin only ─────────────────────────────────
+// ─── PUT /api/orders/:id/status — admin only ──────────────────────────────────
 router.put('/:id/status', authenticate, adminOnly, async (req, res) => {
   try {
     const { order_status, payment_status } = req.body;
 
-    const updateData = { updated_at: new Date().toISOString() };
-    if (order_status) updateData.order_status = order_status;
-    if (payment_status) updateData.payment_status = payment_status;
+    // Build update query dynamically based on what was sent
+    const fields = [];
+    const values = [];
+    let i = 1;
 
-    const { data, error } = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    if (order_status)   { fields.push(`order_status = $${i++}`);   values.push(order_status); }
+    if (payment_status) { fields.push(`payment_status = $${i++}`); values.push(payment_status); }
+    fields.push(`updated_at = NOW()`);
 
-    if (error || !data) return res.status(404).json({ error: 'Order not found.' });
-    res.json({ order: data });
+    values.push(req.params.id);
+
+    const result = await pool.query(
+      `UPDATE orders SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      values
+    );
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ order: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Could not update order status.' });
   }

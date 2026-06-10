@@ -1,76 +1,53 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { supabase } = require('../lib/supabase');
+const { pool } = require('../lib/supabase');
 const { authenticate } = require('../middleware/authenticate');
 require('dotenv').config();
 
 const router = express.Router();
 
-// Helper to make a JWT token
 const makeToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' } // token lasts 7 days
+    { expiresIn: '7d' }
   );
 };
 
-// ─── POST /api/auth/signup ───────────────────────────────────────────────────
-// Anyone can call this. Role is ALWAYS set to 'user' — never from request body.
+// ─── POST /api/auth/signup ────────────────────────────────────────────────────
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
-    // Basic validation
-    if (!email || !password || !name) {
+    if (!email || !password || !name)
       return res.status(400).json({ error: 'Email, password and name are required.' });
-    }
-    if (password.length < 6) {
+    if (password.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-    }
 
     // Check if email already exists
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (existing) {
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+    if (existing.rows.length > 0)
       return res.status(409).json({ error: 'An account with this email already exists.' });
-    }
 
-    // Hash the password (never store plain text)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Insert user — role is hardcoded 'user', never from req.body
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert({
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        name: name.trim(),
-        role: 'user', // hardcoded — this is the only place role gets set for normal users
-      })
-      .select('id, email, name, role')
-      .single();
+    const result = await pool.query(
+      `INSERT INTO users (email, password, name, role)
+       VALUES ($1, $2, $3, 'user')
+       RETURNING id, email, name, role`,
+      [email.toLowerCase(), hashedPassword, name.trim()]
+    );
 
-    if (error) {
-      console.error('Signup DB error:', error);
-      return res.status(500).json({ error: 'Could not create account. Please try again.' });
-    }
-
+    const newUser = result.rows[0];
     const token = makeToken(newUser);
 
     res.status(201).json({
       token,
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        // NOTE: we do NOT return role to the client on signup
-      },
+      user: { id: newUser.id, name: newUser.name, email: newUser.email },
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -78,43 +55,32 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// ─── POST /api/auth/login ────────────────────────────────────────────────────
+// ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!email || !password)
       return res.status(400).json({ error: 'Email and password are required.' });
-    }
 
-    // Find user by email
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+    const user = result.rows[0];
 
-    if (error || !user) {
-      // Don't reveal whether the email exists — generic message
+    if (!user)
       return res.status(401).json({ error: 'Invalid email or password.' });
-    }
 
-    // Compare password with hash
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
+    if (!passwordMatch)
       return res.status(401).json({ error: 'Invalid email or password.' });
-    }
 
     const token = makeToken(user);
 
     res.json({
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role, // role IS returned on login so frontend can redirect correctly
-      },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -122,19 +88,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─── GET /api/auth/me ────────────────────────────────────────────────────────
-// Frontend calls this on app load to restore the session from localStorage token
+// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, name, role')
-      .eq('id', req.user.id)
-      .single();
+    const result = await pool.query(
+      'SELECT id, email, name, role FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const user = result.rows[0];
 
-    if (error || !user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found.' });
 
     res.json({ user });
   } catch (err) {
