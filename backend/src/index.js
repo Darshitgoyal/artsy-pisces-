@@ -14,7 +14,13 @@ const app = express();
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin === process.env.CLIENT_ORIGIN) {
+    const cleanOrigin = origin.replace(/\/$/, '');
+    const cleanClientOrigin = (process.env.CLIENT_ORIGIN || '').replace(/\/$/, '');
+    if (
+      cleanOrigin.startsWith('http://localhost:') ||
+      cleanOrigin.startsWith('http://127.0.0.1:') ||
+      (cleanClientOrigin && cleanOrigin === cleanClientOrigin)
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
