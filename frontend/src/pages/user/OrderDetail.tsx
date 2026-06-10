@@ -41,7 +41,22 @@ export default function OrderDetail() {
   useEffect(() => {
     if (!id) return;
     api.get(`/orders/${id}`)
-      .then(res => setOrder(res.data.order))
+      .then(res => {
+        const orderData = res.data.order;
+        if (orderData) {
+          let items = orderData.items;
+          if (typeof items === 'string') {
+            try { items = JSON.parse(items); } catch (e) { items = []; }
+          }
+          let address = orderData.address;
+          if (typeof address === 'string') {
+            try { address = JSON.parse(address); } catch (e) { address = null; }
+          }
+          orderData.items = items;
+          orderData.address = address;
+        }
+        setOrder(orderData);
+      })
       .catch(() => navigate('/orders'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -66,7 +81,7 @@ export default function OrderDetail() {
             <ArrowLeft className="h-4 w-4" /> My Orders
           </button>
           <span className="text-muted-foreground">/</span>
-          <span className="font-mono text-sm">#{order.id.slice(0, 8).toUpperCase()}</span>
+          <span className="font-mono text-sm">#{String(order.id).slice(0, 8).toUpperCase()}</span>
         </div>
       </div>
 

@@ -24,7 +24,8 @@ import {
   PlusCircle,
   User,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -50,6 +51,8 @@ interface Order {
   discount: number;
   final_amount: number;
   created_at: string;
+  user_name?: string;
+  user_email?: string;
   users?: {
     name: string;
     email: string;
@@ -133,7 +136,18 @@ export default function AdminDashboard() {
     setLoadingOrders(true);
     try {
       const res = await api.get('/orders');
-      setOrders(res.data.orders);
+      const parsed = (res.data.orders || []).map((o: any) => {
+        let items = o.items;
+        if (typeof items === 'string') {
+          try { items = JSON.parse(items); } catch (e) { items = []; }
+        }
+        let address = o.address;
+        if (typeof address === 'string') {
+          try { address = JSON.parse(address); } catch (e) { address = null; }
+        }
+        return { ...o, items, address };
+      });
+      setOrders(parsed);
     } catch (err) {
       console.error(err);
     } finally {
@@ -366,9 +380,26 @@ export default function AdminDashboard() {
         order_status: editOrderStatus,
         payment_status: editPaymentStatus,
       });
+      const updated = res.data.order;
+      let items = updated.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (e) { items = []; }
+      }
+      let address = updated.address;
+      if (typeof address === 'string') {
+        try { address = JSON.parse(address); } catch (e) { address = null; }
+      }
+      const finalUpdated = {
+        ...updated,
+        items,
+        address,
+        user_name: selectedOrder.user_name,
+        user_email: selectedOrder.user_email,
+        users: selectedOrder.users
+      };
       toast({ title: 'Success', description: 'Order status updated successfully!' });
-      setOrders(orders.map(o => o.id === selectedOrder.id ? res.data.order : o));
-      setSelectedOrder(res.data.order);
+      setOrders(orders.map(o => o.id === selectedOrder.id ? finalUpdated : o));
+      setSelectedOrder(finalUpdated);
     } catch (err: any) {
       toast({ title: 'Update failed', description: err.response?.data?.error || 'Could not save updates.', variant: 'destructive' });
     } finally {
@@ -635,11 +666,11 @@ export default function AdminDashboard() {
                               }`}
                             >
                               <td className="p-3 font-mono font-medium text-slate-700">
-                                #{order.id.slice(0, 8).toUpperCase()}
+                                #{String(order.id).slice(0, 8).toUpperCase()}
                               </td>
                               <td className="p-3">
-                                <p className="font-semibold text-slate-800">{order.users?.name || 'Customer'}</p>
-                                <p className="text-xs text-slate-400">{order.users?.email || 'N/A'}</p>
+                                <p className="font-semibold text-slate-800">{order.user_name || order.users?.name || 'Customer'}</p>
+                                <p className="text-xs text-slate-400">{order.user_email || order.users?.email || 'N/A'}</p>
                               </td>
                               <td className="p-3 font-semibold text-slate-800">
                                 ₹{Number(order.final_amount || 0).toLocaleString('en-IN')}
@@ -669,12 +700,12 @@ export default function AdminDashboard() {
                   {selectedOrder ? (
                     <div className="space-y-6 text-sm">
                       <div>
-                        <h4 className="font-semibold text-slate-700 font-mono text-sm">ORDER #{selectedOrder.id.slice(0, 8).toUpperCase()}</h4>
+                        <h4 className="font-semibold text-slate-700 font-mono text-sm">ORDER #{String(selectedOrder.id).slice(0, 8).toUpperCase()}</h4>
                         <div className="bg-slate-50 p-3 rounded-xl mt-2 flex gap-3 items-center">
                           <User className="h-4 w-4 text-slate-400" />
                           <div>
-                            <p className="font-semibold text-slate-800">{selectedOrder.users?.name || 'Guest User'}</p>
-                            <p className="text-xs text-slate-400">{selectedOrder.users?.email}</p>
+                            <p className="font-semibold text-slate-800">{selectedOrder.user_name || selectedOrder.users?.name || 'Guest User'}</p>
+                            <p className="text-xs text-slate-400">{selectedOrder.user_email || selectedOrder.users?.email || 'N/A'}</p>
                           </div>
                         </div>
                       </div>

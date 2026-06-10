@@ -31,7 +31,20 @@ export default function OrderHistory() {
 
   useEffect(() => {
     api.get('/orders/mine')
-      .then(res => setOrders(res.data.orders))
+      .then(res => {
+        const parsed = (res.data.orders || []).map((o: any) => {
+          let items = o.items;
+          if (typeof items === 'string') {
+            try { items = JSON.parse(items); } catch (e) { items = []; }
+          }
+          let address = o.address;
+          if (typeof address === 'string') {
+            try { address = JSON.parse(address); } catch (e) { address = null; }
+          }
+          return { ...o, items, address };
+        });
+        setOrders(parsed);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -76,10 +89,10 @@ export default function OrderHistory() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-mono text-sm text-muted-foreground">
-                        #{order.id.slice(0, 8).toUpperCase()}
+                        #{String(order.id).slice(0, 8).toUpperCase()}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColor[order.order_status]}`}>
-                        {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1)}
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColor[order.order_status || 'placed']}`}>
+                        {(order.order_status || 'placed').charAt(0).toUpperCase() + (order.order_status || 'placed').slice(1)}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-1">
