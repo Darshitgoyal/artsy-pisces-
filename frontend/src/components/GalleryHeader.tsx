@@ -52,6 +52,9 @@ export function GalleryHeader() {
                     </Button>
                   </Link>
                 )}
+                <Link to="/customizations">
+                  <Button variant="outline" size="sm">Custom Artwork</Button>
+                </Link>
                 <Link to="/orders">
                   <Button variant="outline" size="sm">My Orders</Button>
                 </Link>

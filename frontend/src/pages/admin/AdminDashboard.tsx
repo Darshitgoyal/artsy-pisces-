@@ -25,7 +25,9 @@ import {
   User,
   MapPin,
   RefreshCw,
-  ShieldAlert
+  ShieldAlert,
+  FolderSync,
+  Sparkles
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -72,7 +74,7 @@ interface Coupon {
   created_at: string;
 }
 
-type TabType = 'dashboard' | 'artworks' | 'orders' | 'coupons';
+type TabType = 'dashboard' | 'artworks' | 'orders' | 'past_orders' | 'customizations' | 'coupons';
 
 const statusColor: Record<string, string> = {
   placed:     'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -94,11 +96,13 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [customizations, setCustomizations] = useState<any[]>([]);
   
   // Loading states
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingArtworks, setLoadingArtworks] = useState(true);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
+  const [loadingCustomizations, setLoadingCustomizations] = useState(true);
 
   // Modals & form state for Artwork
   const [showAddArtworkModal, setShowAddArtworkModal] = useState(false);
@@ -180,10 +184,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchCustomizations = async () => {
+    setLoadingCustomizations(true);
+    try {
+      const res = await api.get('/customizations');
+      setCustomizations(res.data.requests || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingCustomizations(false);
+    }
+  };
+
+  const handleApproveCustomRequest = async (id: number, price: number) => {
+    try {
+      const res = await api.put(`/customizations/${id}/quote`, { price });
+      toast({ title: 'Approved', description: 'Request approved and quote set successfully.' });
+      setCustomizations(customizations.map(c => c.id === id ? res.data.request : c));
+    } catch (err: any) {
+      toast({ title: 'Failed to approve', description: err.response?.data?.error || 'Error setting quote.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeclineCustomRequest = async (id: number) => {
+    if (!confirm('Are you sure you want to decline this request?')) return;
+    try {
+      const res = await api.put(`/customizations/${id}/status`, { status: 'declined' });
+      toast({ title: 'Declined', description: 'Request status set to declined.' });
+      setCustomizations(customizations.map(c => c.id === id ? res.data.request : c));
+    } catch (err: any) {
+      toast({ title: 'Failed to update', description: 'Could not decline request.', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchArtworks();
     fetchCoupons();
+    fetchCustomizations();
   }, []);
 
   const handleLogout = () => {
@@ -426,6 +464,9 @@ export default function AdminDashboard() {
     return sum; // pending/failed: 0
   }, 0);
 
+  const activeOrdersList = orders.filter(o => ['placed', 'confirmed', 'processing', 'shipped'].includes(o.order_status));
+  const pastOrdersList = orders.filter(o => ['delivered', 'cancelled'].includes(o.order_status));
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
       
@@ -483,7 +524,29 @@ export default function AdminDashboard() {
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            <ShoppingBag className="h-4 w-4" /> Manage Orders
+            <ShoppingBag className="h-4 w-4" /> Active Orders
+          </button>
+
+          <button
+            onClick={() => setActiveTab('past_orders')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'past_orders'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <FolderSync className="h-4 w-4" /> Past Orders
+          </button>
+
+          <button
+            onClick={() => setActiveTab('customizations')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'customizations'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" /> Custom Demands
           </button>
 
           <button
@@ -650,13 +713,13 @@ export default function AdminDashboard() {
               {/* Order List Col */}
               <div className="lg:col-span-2 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Manage Customer Orders</h2>
-                  <p className="text-slate-500 text-sm">Monitor sales and update dispatch tracking.</p>
+                  <h2 className="text-2xl font-bold text-slate-800">Manage Active Orders</h2>
+                  <p className="text-slate-500 text-sm">Monitor active sales and update dispatch tracking.</p>
                 </div>
 
                 <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-base text-slate-800">Order Logs</h3>
+                    <h3 className="font-semibold text-base text-slate-800">Active Order Logs</h3>
                     <Button size="sm" variant="ghost" onClick={fetchOrders} className="gap-1">
                       <RefreshCw className="h-4 w-4" /> Refresh
                     </Button>
@@ -668,8 +731,8 @@ export default function AdminDashboard() {
                         <div key={i} className="h-16 rounded-xl bg-slate-50 animate-pulse" />
                       ))}
                     </div>
-                  ) : orders.length === 0 ? (
-                    <div className="text-center py-8 text-slate-400 text-sm">No orders recorded.</div>
+                  ) : activeOrdersList.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm">No active orders.</div>
                   ) : (
                     <div className="overflow-x-auto border rounded-xl border-slate-100">
                       <table className="w-full text-left border-collapse text-sm">
@@ -683,7 +746,7 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {orders.map(order => (
+                          {activeOrdersList.map(order => (
                             <tr 
                               key={order.id} 
                               onClick={() => selectOrder(order)}
@@ -811,6 +874,225 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* TAB: PAST ORDERS */}
+          {activeTab === 'past_orders' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Order List Col */}
+              <div className="lg:col-span-2 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Archived Past Orders</h2>
+                  <p className="text-slate-500 text-sm">History of delivered and cancelled customer orders.</p>
+                </div>
+
+                <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-base text-slate-800">Archived Logs</h3>
+                    <Button size="sm" variant="ghost" onClick={fetchOrders} className="gap-1">
+                      <RefreshCw className="h-4 w-4" /> Refresh
+                    </Button>
+                  </div>
+
+                  {loadingOrders ? (
+                    <div className="space-y-4 py-4">
+                      {[1, 2].map(i => (
+                        <div key={i} className="h-16 rounded-xl bg-slate-50 animate-pulse" />
+                      ))}
+                    </div>
+                  ) : pastOrdersList.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm">No past orders.</div>
+                  ) : (
+                    <div className="overflow-x-auto border rounded-xl border-slate-100">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="p-3 font-semibold text-slate-600">Order ID</th>
+                            <th className="p-3 font-semibold text-slate-600">Customer</th>
+                            <th className="p-3 font-semibold text-slate-600">Amount</th>
+                            <th className="p-3 font-semibold text-slate-600">Method</th>
+                            <th className="p-3 font-semibold text-slate-600">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pastOrdersList.map(order => (
+                            <tr 
+                              key={order.id} 
+                              onClick={() => selectOrder(order)}
+                              className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer last:border-0 ${
+                                selectedOrder?.id === order.id ? 'bg-primary/5 hover:bg-primary/10' : ''
+                              }`}
+                            >
+                              <td className="p-3 font-mono font-medium text-slate-700">
+                                #{String(order.id).slice(0, 8).toUpperCase()}
+                              </td>
+                              <td className="p-3">
+                                <p className="font-semibold text-slate-800">{order.user_name || order.users?.name || 'Customer'}</p>
+                                <p className="text-xs text-slate-400">{order.user_email || order.users?.email || 'N/A'}</p>
+                              </td>
+                              <td className="p-3 font-semibold text-slate-800">
+                                ₹{Number(order.final_amount || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="p-3 capitalize text-slate-600">{order.payment_method}</td>
+                              <td className="p-3">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold capitalize ${statusColor[order.order_status]}`}>
+                                  {order.order_status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Order Detail Editor Panel Col */}
+              <div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm sticky top-24 space-y-6">
+                  <h3 className="font-semibold text-lg text-slate-800 border-b pb-3 flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" /> Tracking Management
+                  </h3>
+
+                  {selectedOrder ? (
+                    <div className="space-y-6 text-sm">
+                      <div>
+                        <h4 className="font-semibold text-slate-700 font-mono text-sm">ORDER #{String(selectedOrder.id).slice(0, 8).toUpperCase()}</h4>
+                        <div className="bg-slate-50 p-3 rounded-xl mt-2 flex gap-3 items-center">
+                          <User className="h-4 w-4 text-slate-400" />
+                          <div>
+                            <p className="font-semibold text-slate-800">{selectedOrder.user_name || selectedOrder.users?.name || 'Guest User'}</p>
+                            <p className="text-xs text-slate-400">{selectedOrder.user_email || selectedOrder.users?.email || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Items */}
+                      <div className="space-y-1.5">
+                        <h5 className="font-semibold text-slate-400 text-xs uppercase tracking-wider">Purchased Items</h5>
+                        <div className="space-y-1.5 max-h-32 overflow-y-auto bg-slate-50/50 p-3 rounded-lg border border-slate-50">
+                          {selectedOrder.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs">
+                              <span className="truncate font-medium text-slate-700">{item.title}</span>
+                              <span className="font-semibold text-slate-800">₹{Number(item.price || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Delivery address details */}
+                      <div className="space-y-1.5">
+                        <h5 className="font-semibold text-slate-400 text-xs uppercase tracking-wider">Delivery Details</h5>
+                        {selectedOrder.address ? (
+                          <div className="bg-slate-50/55 border border-slate-50 p-3 rounded-lg text-xs text-slate-500 space-y-1">
+                            <p className="font-semibold text-slate-700">{selectedOrder.address.name}</p>
+                            <p>{selectedOrder.address.line1}</p>
+                            <p>{selectedOrder.address.city}, {selectedOrder.address.state} — {selectedOrder.address.pincode}</p>
+                            <p className="mt-1 text-slate-800 font-bold">📞 {selectedOrder.address.phone}</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400">No address details available.</p>
+                        )}
+                      </div>
+
+                      {/* Select state */}
+                      <div className="border-t border-slate-100 pt-4 space-y-4">
+                        <h4 className="font-semibold text-slate-800 text-sm">Update State</h4>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs text-slate-400 font-semibold">Tracking Status</Label>
+                          <select 
+                            value={editOrderStatus} 
+                            onChange={(e) => setEditOrderStatus(e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-primary focus:outline-none"
+                          >
+                            <option value="placed">Placed</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs text-slate-400 font-semibold">Payment Status</Label>
+                          <select 
+                            value={editPaymentStatus} 
+                            onChange={(e) => setEditPaymentStatus(e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-primary focus:outline-none"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="refunded">Refunded</option>
+                          </select>
+                        </div>
+
+                        <Button onClick={handleUpdateOrderStatus} disabled={orderSubmitting} className="w-full h-10 shadow-sm mt-1">
+                          {orderSubmitting ? 'Updating...' : 'Save Tracking Update'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 text-slate-400 text-sm flex flex-col items-center justify-center gap-2">
+                      <ShieldAlert className="h-8 w-8 text-slate-300" />
+                      <p>Select a customer order from the table list to inspect or modify its shipping state.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB: CUSTOM DEMANDS */}
+          {activeTab === 'customizations' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">Custom Artwork Demands</h2>
+                <p className="text-slate-500 text-sm">Review user ideas, check reference images, and submit custom pricing quotes.</p>
+              </div>
+
+              {loadingCustomizations ? (
+                <div className="space-y-4 py-4">
+                  {[1, 2].map(i => (
+                    <div key={i} className="h-24 bg-white rounded-2xl animate-pulse border" />
+                  ))}
+                </div>
+              ) : customizations.length === 0 ? (
+                <div className="bg-white border rounded-2xl p-12 text-center text-slate-500 shadow-sm">
+                  No customization demands submitted yet.
+                </div>
+              ) : (
+                <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="p-4 font-semibold text-slate-600">Request ID</th>
+                        <th className="p-4 font-semibold text-slate-600">Customer</th>
+                        <th className="p-4 font-semibold text-slate-600">Requirements Description</th>
+                        <th className="p-4 font-semibold text-slate-600">Reference Image</th>
+                        <th className="p-4 font-semibold text-slate-600">Status</th>
+                        <th className="p-4 font-semibold text-slate-600">Quote Price</th>
+                        <th className="p-4 font-semibold text-right text-slate-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customizations.map(req => (
+                        <CustomRequestRow 
+                          key={req.id} 
+                          request={req} 
+                          onApprove={handleApproveCustomRequest}
+                          onDecline={handleDeclineCustomRequest}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -1141,5 +1423,102 @@ export default function AdminDashboard() {
       )}
 
     </div>
+  );
+}
+
+interface CustomRequestRowProps {
+  request: any;
+  onApprove: (id: number, price: number) => void;
+  onDecline: (id: number) => void;
+}
+
+function CustomRequestRow({ request, onApprove, onDecline }: CustomRequestRowProps) {
+  const [quotePrice, setQuotePrice] = useState(request.price ? String(request.price) : '');
+  
+  return (
+    <tr className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/20">
+      <td className="p-4 font-mono font-medium text-slate-500">#{request.id}</td>
+      <td className="p-4">
+        <p className="font-semibold text-slate-800">{request.user_name || 'Customer'}</p>
+        <p className="text-xs text-slate-400">{request.user_email || 'N/A'}</p>
+      </td>
+      <td className="p-4 max-w-xs">
+        <p className="text-slate-700 whitespace-pre-wrap leading-relaxed text-xs line-clamp-3 hover:line-clamp-none transition-all">{request.description}</p>
+      </td>
+      <td className="p-4">
+        {request.reference_image_url ? (
+          <a href={request.reference_image_url} target="_blank" rel="noopener noreferrer" className="inline-block relative group">
+            <img src={request.reference_image_url} alt="Ref" className="w-12 h-12 object-cover rounded border group-hover:scale-110 transition-transform" />
+          </a>
+        ) : (
+          <span className="text-xs text-slate-400 italic">None</span>
+        )}
+      </td>
+      <td className="p-4">
+        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border capitalize ${
+          request.status === 'pending'   ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+          request.status === 'approved'  ? 'bg-green-50 border-green-200 text-green-700' :
+          request.status === 'declined'  ? 'bg-red-50 border-red-200 text-red-700' :
+          'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          {request.status}
+        </span>
+      </td>
+      <td className="p-4">
+        {request.status === 'completed' || request.status === 'approved' ? (
+          <span className="font-bold text-slate-800">₹{Number(request.price).toLocaleString('en-IN')}</span>
+        ) : request.status === 'declined' ? (
+          <span className="text-xs text-slate-400 italic">—</span>
+        ) : (
+          <div className="flex items-center gap-1.5 w-24">
+            <span className="text-slate-400">₹</span>
+            <input 
+              type="number"
+              placeholder="Price"
+              value={quotePrice}
+              onChange={(e) => setQuotePrice(e.target.value)}
+              className="w-full border border-slate-200 rounded p-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+            />
+          </div>
+        )}
+      </td>
+      <td className="p-4 text-right">
+        {request.status === 'pending' && (
+          <div className="flex justify-end gap-1.5">
+            <Button 
+              size="sm" 
+              onClick={() => {
+                const p = parseFloat(quotePrice);
+                if (isNaN(p) || p <= 0) {
+                  alert('Please enter a valid price quote.');
+                  return;
+                }
+                onApprove(request.id, p);
+              }}
+              className="h-7 text-xs px-2.5 bg-green-600 hover:bg-green-700"
+            >
+              Quote & Approve
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => onDecline(request.id)}
+              className="h-7 text-xs px-2 text-red-500 hover:text-red-600 hover:bg-red-50 border-slate-200"
+            >
+              Decline
+            </Button>
+          </div>
+        )}
+        {request.status === 'approved' && (
+          <span className="text-xs text-slate-400 italic">Waiting for customer checkout</span>
+        )}
+        {request.status === 'completed' && (
+          <span className="text-xs text-green-600 font-bold">Ordered & Completed</span>
+        )}
+        {request.status === 'declined' && (
+          <span className="text-xs text-red-500 italic">Declined</span>
+        )}
+      </td>
+    </tr>
   );
 }

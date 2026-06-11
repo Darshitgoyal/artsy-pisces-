@@ -11,6 +11,7 @@ import Signup from "@/pages/Signup";
 import Checkout from "@/pages/user/Checkout";
 import OrderHistory from "@/pages/user/OrderHistory";
 import OrderDetail from "@/pages/user/OrderDetail";
+import CustomRequests from "@/pages/user/CustomRequests";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
                 <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                <Route path="/customizations" element={<ProtectedRoute><CustomRequests /></ProtectedRoute>} />
 
                 {/* Admin — Phase 4 */}
                 <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
