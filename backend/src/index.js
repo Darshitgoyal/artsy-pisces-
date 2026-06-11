@@ -7,6 +7,7 @@ const artworkRoutes  = require('./routes/artworks');
 const orderRoutes    = require('./routes/orders');
 const paymentRoutes  = require('./routes/payments');
 const couponRoutes   = require('./routes/coupons');
+const customizationRoutes = require('./routes/customizations');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/artworks', artworkRoutes);
 app.use('/api/orders',   orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons',  couponRoutes);
+app.use('/api/customizations', customizationRoutes);
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {

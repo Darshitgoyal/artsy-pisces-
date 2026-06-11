@@ -46,6 +46,26 @@ router.post('/', authenticate, async (req, res) => {
       );
     }
 
+    // Mark associated customization requests as completed (ordered)
+    try {
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          if (item.id && String(item.id).startsWith('custom_')) {
+            const reqIdStr = String(item.id).replace('custom_', '');
+            const requestId = parseInt(reqIdStr, 10);
+            if (!isNaN(requestId)) {
+              await pool.query(
+                "UPDATE customization_requests SET status = 'completed' WHERE id = $1",
+                [requestId]
+              );
+            }
+          }
+        }
+      }
+    } catch (custErr) {
+      console.error('Failed to update customization status during order placement:', custErr);
+    }
+
     res.status(201).json({ order });
   } catch (err) {
     console.error('Create order error:', err);
