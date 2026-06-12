@@ -12,6 +12,7 @@ import Checkout from "@/pages/user/Checkout";
 import OrderHistory from "@/pages/user/OrderHistory";
 import OrderDetail from "@/pages/user/OrderDetail";
 import CustomRequests from "@/pages/user/CustomRequests";
+import ForgotPassword from "@/pages/FogotPassword";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
 
                 {/* User protected */}
                 <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
