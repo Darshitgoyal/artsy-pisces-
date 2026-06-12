@@ -12,7 +12,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, otp: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -39,11 +39,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const res = await api.post('/auth/login', { email, password });
     localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
-    return res.data.user; // return user so Login page can check role and redirect
+    return res.data.user;
   };
 
-  const signup = async (name: string, email: string, password: string) => {
-    const res = await api.post('/auth/signup', { name, email, password });
+  // OTP is now required — Signup.tsx sends it after email verification
+  const signup = async (name: string, email: string, password: string, otp: string) => {
+    const res = await api.post('/auth/signup', { name, email, password, otp });
     localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
   };
