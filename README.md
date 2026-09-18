@@ -141,10 +141,13 @@ CLIENT_ORIGIN=http://localhost:5173
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 
-# OTP email delivery (required outside local development)
-RESEND_API_KEY=your_resend_api_key
-# Optional in development: send all test OTPs to this verified address
-RESEND_TEST_EMAIL=your_verified_resend_email
+# SMTP email delivery (required outside local development)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+SMTP_FROM=Artsy Pisces <you@example.com>
 
 # Cloudinary credentials
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name

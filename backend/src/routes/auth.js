@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../lib/supabase');
 const { authenticate } = require('../middleware/authenticate');
-const { sendOTPEmail } = require('../lib/email');
+const { sendOTPEmail, sendLoginEmail } = require('../lib/email');
 require('dotenv').config();
 
 const router = express.Router();
@@ -61,7 +61,10 @@ router.post('/send-otp', async (req, res) => {
 
     res.json({
       message: 'OTP sent to your email. Please verify to complete signup.',
-      ...(process.env.NODE_ENV !== 'production' && !process.env.RESEND_API_KEY ? { otp } : {}),
+      ...(process.env.NODE_ENV !== 'production' &&
+        (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD)
+        ? { otp }
+        : {}),
     });
   } catch (err) {
     console.error('Send OTP error:', err);
@@ -158,6 +161,10 @@ router.post('/login', async (req, res) => {
 
     const token = makeToken(user);
 
+    sendLoginEmail(user.email, user.name).catch((err) => {
+      console.error('Login notification error:', err);
+    });
+
     res.json({
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -221,7 +228,13 @@ router.post('/forgot-password', async (req, res) => {
     // Send email
     await sendOTPEmail(email, user.name, otp);
 
-    res.json({ message: 'If this email exists, an OTP has been sent.' });
+    res.json({
+      message: 'If this email exists, an OTP has been sent.',
+      ...(process.env.NODE_ENV !== 'production' &&
+        (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD)
+        ? { otp }
+        : {}),
+    });
   } catch (err) {
     console.error('Forgot password error:', err);
     res.status(500).json({ error: 'Server error.' });
