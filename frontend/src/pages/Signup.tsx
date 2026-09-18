@@ -32,8 +32,14 @@ export default function Signup() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/send-otp', { name, email, password });
-      toast({ title: 'OTP sent!', description: `Check your inbox at ${email}` });
+      const response = await api.post('/auth/send-otp', { name, email, password });
+      const developmentOtp = response.data.otp;
+      toast({
+        title: 'OTP sent!',
+        description: developmentOtp
+          ? `Development OTP: ${developmentOtp}`
+          : `Check your inbox at ${email}`,
+      });
       setStep('otp');
     } catch (err: any) {
       toast({
@@ -57,7 +63,7 @@ export default function Signup() {
     try {
       await signup(name, email, password, otp);
       toast({ title: 'Account created!', description: 'Welcome to Artsy Pisces.' });
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err: any) {
       toast({
         title: 'Verification failed',

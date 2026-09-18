@@ -59,7 +59,10 @@ router.post('/send-otp', async (req, res) => {
     // Send OTP email
     await sendOTPEmail(email, name, otp);
 
-    res.json({ message: 'OTP sent to your email. Please verify to complete signup.' });
+    res.json({
+      message: 'OTP sent to your email. Please verify to complete signup.',
+      ...(process.env.NODE_ENV !== 'production' && !process.env.RESEND_API_KEY ? { otp } : {}),
+    });
   } catch (err) {
     console.error('Send OTP error:', err);
     res.status(500).json({ error: 'Could not send OTP. Please try again.' });
@@ -124,7 +127,7 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: newUser.id, name: newUser.name, email: newUser.email },
+      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
     });
   } catch (err) {
     console.error('Signup error:', err);

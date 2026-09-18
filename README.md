@@ -64,8 +64,18 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) DEFAULT 'customer', -- 'customer' or 'admin'
+    role VARCHAR(50) DEFAULT 'user', -- 'user' or 'admin'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Signup and password reset verification codes
+CREATE TABLE otp_verifications (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. Artworks Table
@@ -130,6 +140,11 @@ CLIENT_ORIGIN=http://localhost:5173
 # Razorpay credentials
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+# OTP email delivery (required outside local development)
+RESEND_API_KEY=your_resend_api_key
+# Optional in development: send all test OTPs to this verified address
+RESEND_TEST_EMAIL=your_verified_resend_email
 
 # Cloudinary credentials
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name

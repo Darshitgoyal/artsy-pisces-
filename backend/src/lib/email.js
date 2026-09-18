@@ -1,9 +1,19 @@
 const { Resend } = require('resend');
 require('dotenv').config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const sendOTPEmail = async (email, name, otp) => {
+  if (!resend) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('RESEND_API_KEY is required in production.');
+    }
+    console.log('Development OTP for', email, ':', otp);
+    return;
+  }
+
   // In development with onboarding@resend.dev, emails can only go to
   // your verified address. In production with a custom domain, use `email` directly.
   const recipient = process.env.NODE_ENV === 'production'

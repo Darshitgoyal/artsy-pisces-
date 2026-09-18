@@ -21,9 +21,9 @@ export default function Login() {
       const user = await login(email, password);
       // Redirect based on role — admin goes to /admin, user goes to gallery
       if (user.role === 'admin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/');
+        navigate('/', { replace: true });
       }
     } catch (err: any) {
       toast({
