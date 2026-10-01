@@ -2,12 +2,13 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const authRoutes     = require('./routes/auth');
-const artworkRoutes  = require('./routes/artworks');
-const orderRoutes    = require('./routes/orders');
-const paymentRoutes  = require('./routes/payments');
-const couponRoutes   = require('./routes/coupons');
+const authRoutes          = require('./routes/auth');
+const artworkRoutes       = require('./routes/artworks');
+const orderRoutes         = require('./routes/orders');
+const paymentRoutes       = require('./routes/payments');
+const couponRoutes        = require('./routes/coupons');
 const customizationRoutes = require('./routes/customizations');
+const { pingDatabase, startKeepAlive } = require('./lib/keepAlive');
 
 const app = express();
 
@@ -30,17 +31,33 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Artsy Pisces backend is running.' });
+// ─── Health check & Supabase Keep-Alive ───────────────────────────────────────
+app.get('/health', async (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Artsy Pisces backend is running.',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Dedicated trigger endpoint for external monitors (e.g., cron-job.org, UptimeRobot, GitHub Actions)
+app.get('/api/keep-alive', async (req, res) => {
+  const result = await pingDatabase();
+  const statusCode = result.success ? 200 : 500;
+  res.status(statusCode).json({
+    status: result.success ? 'active' : 'error',
+    ...result,
+    uptimeSeconds: Math.floor(process.uptime()),
+  });
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/artworks', artworkRoutes);
-app.use('/api/orders',   orderRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/coupons',  couponRoutes);
+app.use('/api/auth',           authRoutes);
+app.use('/api/artworks',       artworkRoutes);
+app.use('/api/orders',         orderRoutes);
+app.use('/api/payments',       paymentRoutes);
+app.use('/api/coupons',        couponRoutes);
 app.use('/api/customizations', customizationRoutes);
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
@@ -58,4 +75,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ Artsy Pisces backend running at http://localhost:${PORT}`);
+  // Start the background Supabase heartbeat keeper
+  startKeepAlive();
 });

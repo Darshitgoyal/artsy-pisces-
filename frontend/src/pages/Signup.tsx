@@ -17,6 +17,7 @@ export default function Signup() {
 
   // Step 2 field
   const [otp, setOtp] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -31,9 +32,13 @@ export default function Signup() {
       return;
     }
     setLoading(true);
+    setDevOtp(null);
     try {
       const response = await api.post('/auth/send-otp', { name, email, password });
       const developmentOtp = response.data.otp;
+      if (developmentOtp) {
+        setDevOtp(developmentOtp);
+      }
       toast({
         title: 'OTP sent!',
         description: developmentOtp
@@ -127,6 +132,12 @@ export default function Signup() {
                   We sent a 6-digit code to<br />
                   <strong className="text-foreground">{email}</strong>
                 </p>
+                {devOtp && (
+                  <div className="mt-2.5 p-2 bg-muted/60 border border-border rounded-lg text-xs">
+                    <span className="text-muted-foreground">Dev Mode OTP: </span>
+                    <strong className="font-mono text-primary tracking-widest">{devOtp}</strong>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="otp">Verification Code</Label>

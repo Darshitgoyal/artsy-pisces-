@@ -1,17 +1,27 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '@/lib/api';
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
   role: 'user' | 'admin';
 }
 
+export interface LoginResult {
+  otpRequired: boolean;
+  email?: string;
+  message?: string;
+  otp?: string;
+  user?: User;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  verifyLoginOtp: (email: string, otp: string) => Promise<User>;
+  resendLoginOtp: (email: string) => Promise<{ message: string; otp?: string }>;
   signup: (name: string, email: string, password: string, otp: string) => Promise<void>;
   logout: () => void;
 }
@@ -43,15 +53,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string): Promise<User> => {
+  // Step 1: Submit credentials to start login
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     const res = await api.post('/auth/login', { email, password });
+
+    if (res.data.otpRequired) {
+      return {
+        otpRequired: true,
+        email: res.data.email || email,
+        message: res.data.message,
+        otp: res.data.otp,
+      };
+    }
+
+    // Direct token return fallback
+    if (res.data.token && res.data.user) {
+      localStorage.setItem('token', res.data.token);
+      const authenticatedUser = normalizeUser(res.data.user);
+      setUser(authenticatedUser);
+      return {
+        otpRequired: false,
+        user: authenticatedUser,
+      };
+    }
+
+    return { otpRequired: false };
+  };
+
+  // Step 2: Verify OTP received on email
+  const verifyLoginOtp = async (email: string, otp: string): Promise<User> => {
+    const res = await api.post('/auth/login-verify-otp', { email, otp });
     localStorage.setItem('token', res.data.token);
     const authenticatedUser = normalizeUser(res.data.user);
     setUser(authenticatedUser);
     return authenticatedUser;
   };
 
-  // OTP is now required — Signup.tsx sends it after email verification
+  // Resend Login OTP
+  const resendLoginOtp = async (email: string): Promise<{ message: string; otp?: string }> => {
+    const res = await api.post('/auth/resend-login-otp', { email });
+    return res.data;
+  };
+
+  // Signup with OTP verification
   const signup = async (name: string, email: string, password: string, otp: string) => {
     const res = await api.post('/auth/signup', { name, email, password, otp });
     localStorage.setItem('token', res.data.token);
@@ -64,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLoginOtp, resendLoginOtp, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

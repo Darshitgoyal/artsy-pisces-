@@ -141,13 +141,20 @@ CLIENT_ORIGIN=http://localhost:5173
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 
-# SMTP email delivery (required outside local development)
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your_smtp_username
-SMTP_PASSWORD=your_smtp_password
-SMTP_FROM=Artsy Pisces <you@example.com>
+# Personal Email Delivery (Send OTP directly through your personal Gmail / SMTP)
+# For Gmail: Use your Gmail address and 16-character App Password (from Google Account > Security > App Passwords)
+EMAIL_SERVICE=gmail
+EMAIL_USER=your_personal_email@gmail.com
+EMAIL_PASS=your_16_char_app_password
+
+# Or Standard SMTP:
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your_personal_email@gmail.com
+# SMTP_PASSWORD=your_app_password
+
+# Supabase Auto-Pause Prevention (Interval in hours)
+SUPABASE_PING_INTERVAL_HOURS=12
 
 # Cloudinary credentials
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
@@ -160,6 +167,24 @@ Create a `.env` file inside the `frontend` folder:
 ```env
 VITE_API_URL=http://localhost:4000/api
 ```
+
+---
+
+## 🔐 2-Step OTP Verification Flow
+Both **Login** and **Forgot Password** (as well as Signup) now use secure 2-step email verification:
+1. **Login:** User enters email and password. Once credentials pass verification, a 6-digit OTP is automatically generated and delivered directly to the user's email via your configured personal email. The user enters the OTP to complete login and receive their JWT session token.
+2. **Forgot Password:** User requests a password reset code to their email. After entering the 6-digit OTP and their new password, the account password is encrypted and updated.
+3. **Resend OTP & Cooldown:** Built-in 60-second cooldown timer prevents abuse while allowing users to easily request a fresh code.
+4. **Development Fallback:** In development mode without email credentials, the generated OTP is logged to the console and displayed in a handy UI badge for testing.
+
+---
+
+## 🛡️ Supabase Auto-Pause Prevention (Keep-Alive)
+Supabase free tier automatically pauses inactive projects after 7 days without queries. This project includes **three automated solutions** to keep the project active:
+1. **Built-in Backend Heartbeat:** Whenever the backend is running, `keepAlive.js` queries Supabase PostgreSQL every 12 hours (configurable via `SUPABASE_PING_INTERVAL_HOURS`), continuously resetting the inactivity timer.
+2. **Public Keep-Alive Endpoint (`GET /api/keep-alive`):** Allows any free external monitor (e.g., [cron-job.org](https://cron-job.org) or UptimeRobot) to ping the backend and touch the database.
+3. **GitHub Actions Cron Workflow (`.github/workflows/supabase-keepalive.yml`):** Runs every 2 days on GitHub's cloud completely free, querying Supabase directly so the database stays alive even if the backend server is temporarily offline.
+4. **Manual Ping Script:** Run `npm run keep-alive` inside `backend/` anytime.
 
 ---
 
@@ -178,4 +203,4 @@ cd frontend
 npm install
 npm run dev
 ```
-Open [http://localhost:8080](http://localhost:8080) (or the port specified by Vite) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.

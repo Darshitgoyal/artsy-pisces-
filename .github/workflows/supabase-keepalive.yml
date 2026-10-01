@@ -1,0 +1,39 @@
+name: Supabase Database Keep-Alive
+
+on:
+  schedule:
+    # Runs every 2 days at midnight UTC (0 0 */2 * *)
+    - cron: '0 0 */2 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API directly
+        run: |
+          echo "Sending keep-alive ping to Supabase..."
+          SUPABASE_URL="${{ secrets.SUPABASE_URL || 'https://vkazaanihzlzsmqxdajw.supabase.co' }}"
+          SUPABASE_KEY="${{ secrets.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrYXphYW5paHpsenNtcXhkYWp3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDg0NzE2OCwiZXhwIjoyMDk2NDIzMTY4fQ.u_r4vYD6N4fI5ZxH8pJYSSxzhdMdFE6knn2xjPmz-HE' }}"
+          
+          # Query artworks table (limit 1) to register active usage
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/artworks?limit=1")
+          
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | tr -d '\r' | sed -e 's/.*HTTP_STATUS://')
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "✅ Supabase project is active! 7-day auto-pause reset successfully."
+          else
+            echo "⚠️ Request returned status $STATUS"
+          fi
+
+      - name: Optional Ping to Backend Keep-Alive API (if URL provided)
+        if: ${{ env.BACKEND_URL != '' }}
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          echo "Pinging backend keep-alive endpoint: $BACKEND_URL/api/keep-alive"
+          curl -s "$BACKEND_URL/api/keep-alive" || true
