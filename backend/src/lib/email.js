@@ -67,28 +67,30 @@ const escapeHtml = (value) =>
  */
 const sendEmail = async ({ to, subject, html, text }) => {
   if (process.env.MAIL_RELAY_URL) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000); // never hang forever
-    try {
-      const r = await fetch(process.env.MAIL_RELAY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          secret: process.env.MAIL_RELAY_SECRET,
-          to, subject, html, text,
-        }),
-        signal: controller.signal,
-      });
-      const data = await r.json();
-      if (!data.ok) throw new Error(data.error || 'Mail relay failed');
-      console.log(`✅ [EMAIL SENT via relay] ${to}`);
-      return true;
-    } catch (err) {
-      console.error(`❌ [EMAIL RELAY ERROR] ${to}:`, err.message);
-      throw err;
-    } finally {
-      clearTimeout(timer);
-    }
+    // Fire-and-forget: don't make the user wait for Google's slow relay
+    fetch(process.env.MAIL_RELAY_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        secret: process.env.MAIL_RELAY_SECRET,
+        to, subject, html, text,
+      }),
+      signal: AbortSignal.timeout(60000),
+    })
+      .then((r) => r.text())
+      .then((raw) => {
+        let data = null;
+        try { data = JSON.parse(raw); } catch (_) {}
+        if (data && data.ok === false) {
+          console.error(`❌ [EMAIL RELAY REFUSED] ${to}:`, data.error);
+        } else {
+          console.log(`✅ [EMAIL SENT via relay] ${to}`);
+        }
+      })
+      .catch((err) => console.error(`❌ [EMAIL RELAY ERROR] ${to}:`, err.message));
+
+    return true; // respond to the website immediately
   }
 
   const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
