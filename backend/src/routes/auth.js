@@ -22,6 +22,20 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const formatAuthError = (err, defaultMsg = 'An unexpected error occurred.') => {
+  if (!err) return defaultMsg;
+  if (err.code === 'ENETUNREACH' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+    return 'Database network unreachable. If hosted on Render, you must use the Supabase IPv4 Pooler URL (aws-0-...pooler.supabase.com:6543) instead of direct connection.';
+  }
+  if (err.code === '28P01') {
+    return 'Database password authentication failed for user "postgres". Please reset or check your Supabase DB password.';
+  }
+  if (err.responseCode === 535 || (err.message && (err.message.includes('5.7.8') || err.message.includes('Username and Password not accepted')))) {
+    return 'Email authentication failed: Google rejected the App Password for artsy.picese@gmail.com. Please verify your 16-character App Password.';
+  }
+  return err.message || defaultMsg;
+};
+
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 // Step 1 of signup — validate details and send OTP to email
 router.post('/send-otp', async (req, res) => {
@@ -67,7 +81,7 @@ router.post('/send-otp', async (req, res) => {
     });
   } catch (err) {
     console.error('Send OTP error:', err);
-    res.status(500).json({ error: 'Could not send OTP. Please try again.' });
+    res.status(500).json({ error: formatAuthError(err, 'Could not send OTP. Please try again.') });
   }
 });
 
@@ -133,7 +147,7 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: formatAuthError(err, 'Server error during signup.') });
   }
 });
 

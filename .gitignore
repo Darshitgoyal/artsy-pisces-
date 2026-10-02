@@ -4,6 +4,7 @@ node_modules/
 
 # Never commit .env files (they have your secrets)
 .env
+
 **/.env
 
 # Build output

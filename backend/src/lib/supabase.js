@@ -1,10 +1,15 @@
 const { Pool } = require('pg');
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 require('dotenv').config();
 
 // pg connects directly to Supabase's PostgreSQL database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,
 });
 
 // Helper that mimics the Supabase client API so we don't rewrite all routes

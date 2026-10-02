@@ -66,6 +66,31 @@ const escapeHtml = (value) =>
  * Generic email sending function with error catching and detailed logging
  */
 const sendEmail = async ({ to, subject, html, text }) => {
+  if (process.env.MAIL_RELAY_URL) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000); // never hang forever
+    try {
+      const r = await fetch(process.env.MAIL_RELAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          secret: process.env.MAIL_RELAY_SECRET,
+          to, subject, html, text,
+        }),
+        signal: controller.signal,
+      });
+      const data = await r.json();
+      if (!data.ok) throw new Error(data.error || 'Mail relay failed');
+      console.log(`✅ [EMAIL SENT via relay] ${to}`);
+      return true;
+    } catch (err) {
+      console.error(`❌ [EMAIL RELAY ERROR] ${to}:`, err.message);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
   const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || (user ? `Artsy Pisces <${user}>` : 'Artsy Pisces');
 
