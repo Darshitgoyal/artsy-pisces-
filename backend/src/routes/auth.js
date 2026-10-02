@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../lib/supabase');
 const { authenticate } = require('../middleware/authenticate');
-const { sendOTPEmail, sendLoginEmail, isEmailConfigured } = require('../lib/email');
+const { sendOTPEmail, isEmailConfigured } = require('../lib/email');
 require('dotenv').config();
 
 const router = express.Router();
@@ -152,19 +152,17 @@ router.post('/signup', async (req, res) => {
 });
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
-// Step 1: User submits email & password. Credentials are verified.
-// If valid, sends OTP to email and requests OTP verification step.
-// (Also supports direct verification if { email, password, otp } is passed).
+// Email + password only (OTP is used only for signup and password reset)
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, otp } = req.body;
+    const { email, password } = req.body;
 
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password are required.' });
 
     const result = await pool.query(
       'SELECT * FROM users WHERE email = $1',
-      [email.toLowerCase()]
+      [email.toLowerCase().trim()]
     );
     const user = result.rows[0];
 
@@ -175,191 +173,15 @@ router.post('/login', async (req, res) => {
     if (!passwordMatch)
       return res.status(401).json({ error: 'Invalid email or password.' });
 
-    // Case A: OTP was provided in the same request
-    if (otp) {
-      const otpRecord = await pool.query(
-        `SELECT * FROM otp_verifications
-         WHERE email = $1 AND used = false
-         ORDER BY created_at DESC LIMIT 1`,
-        [email.toLowerCase()]
-      );
-
-      if (otpRecord.rows.length === 0) {
-        return res.status(400).json({ error: 'No active OTP found. Please request a new one.' });
-      }
-
-      const record = otpRecord.rows[0];
-      if (new Date() > new Date(record.expires_at)) {
-        return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-      }
-
-      if (record.otp !== otp.trim()) {
-        return res.status(400).json({ error: 'Incorrect verification code.' });
-      }
-
-      // Mark OTP as used
-      await pool.query('UPDATE otp_verifications SET used = true WHERE id = $1', [record.id]);
-
-      const token = makeToken(user);
-      sendLoginEmail(user.email, user.name).catch((err) => {
-        console.error('Login notification error:', err);
-      });
-
-      return res.json({
-        token,
-        user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      });
-    }
-
-    // Case B: Standard 2-Step Login: Credentials valid -> generate & send OTP
-    await pool.query(
-      'DELETE FROM otp_verifications WHERE email = $1',
-      [email.toLowerCase()]
-    );
-
-    const generatedOtp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await pool.query(
-      'INSERT INTO otp_verifications (email, otp, expires_at) VALUES ($1, $2, $3)',
-      [email.toLowerCase(), generatedOtp, expiresAt]
-    );
-
-    await sendOTPEmail(user.email, user.name, generatedOtp, 'login');
-
-    return res.json({
-      otpRequired: true,
-      email: user.email,
-      message: 'Verification code sent to your registered email. Please enter it to complete sign in.',
-      ...(process.env.NODE_ENV !== 'production' && !isEmailConfigured()
-        ? { otp: generatedOtp }
-        : {}),
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error during sign in.' });
-  }
-});
-
-// ─── POST /api/auth/login-verify-otp ──────────────────────────────────────────
-// Step 2 of Login: Verify OTP and return session JWT token
-router.post('/login-verify-otp', async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Email and verification code are required.' });
-    }
-
-    const otpRecord = await pool.query(
-      `SELECT * FROM otp_verifications
-       WHERE email = $1 AND used = false
-       ORDER BY created_at DESC LIMIT 1`,
-      [email.toLowerCase()]
-    );
-
-    if (otpRecord.rows.length === 0) {
-      return res.status(400).json({ error: 'No active verification code found. Please sign in again.' });
-    }
-
-    const record = otpRecord.rows[0];
-
-    if (new Date() > new Date(record.expires_at)) {
-      return res.status(400).json({ error: 'Verification code has expired. Please sign in again.' });
-    }
-
-    if (record.otp !== otp.trim()) {
-      return res.status(400).json({ error: 'Incorrect verification code. Please check your email.' });
-    }
-
-    // Mark OTP as used
-    await pool.query(
-      'UPDATE otp_verifications SET used = true WHERE id = $1',
-      [record.id]
-    );
-
-    // Fetch user details
-    const result = await pool.query(
-      'SELECT id, name, email, role FROM users WHERE email = $1',
-      [email.toLowerCase()]
-    );
-    const user = result.rows[0];
-
-    if (!user) {
-      return res.status(404).json({ error: 'User account not found.' });
-    }
-
     const token = makeToken(user);
 
-    // Send successful login notice
-    sendLoginEmail(user.email, user.name).catch((err) => {
-      console.error('Login notification error:', err);
-    });
-
-    res.json({
+    return res.json({
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
-    console.error('Login OTP verification error:', err);
-    res.status(500).json({ error: 'Server error during verification.' });
-  }
-});
-
-// ─── POST /api/auth/resend-login-otp ──────────────────────────────────────────
-// Resend OTP for login with 30s cooldown
-router.post('/resend-login-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required.' });
-    }
-
-    const result = await pool.query(
-      'SELECT id, name, email FROM users WHERE email = $1',
-      [email.toLowerCase()]
-    );
-    const user = result.rows[0];
-    if (!user) {
-      return res.status(404).json({ error: 'No account found with this email.' });
-    }
-
-    // Cooldown check (prevent spam within 30 seconds)
-    const recent = await pool.query(
-      `SELECT created_at FROM otp_verifications 
-       WHERE email = $1 
-       ORDER BY created_at DESC LIMIT 1`,
-      [email.toLowerCase()]
-    );
-    if (recent.rows.length > 0) {
-      const elapsed = Date.now() - new Date(recent.rows[0].created_at).getTime();
-      if (elapsed < 30 * 1000) {
-        const wait = Math.ceil((30 * 1000 - elapsed) / 1000);
-        return res.status(429).json({ error: `Please wait ${wait}s before requesting a new code.` });
-      }
-    }
-
-    await pool.query('DELETE FROM otp_verifications WHERE email = $1', [email.toLowerCase()]);
-
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await pool.query(
-      'INSERT INTO otp_verifications (email, otp, expires_at) VALUES ($1, $2, $3)',
-      [email.toLowerCase(), otp, expiresAt]
-    );
-
-    await sendOTPEmail(user.email, user.name, otp, 'login');
-
-    res.json({
-      message: 'New verification code sent to your email.',
-      ...(process.env.NODE_ENV !== 'production' && !isEmailConfigured()
-        ? { otp }
-        : {}),
-    });
-  } catch (err) {
-    console.error('Resend login OTP error:', err);
-    res.status(500).json({ error: 'Could not resend code. Please try again.' });
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during sign in.' });
   }
 });
 
@@ -386,19 +208,16 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required.' });
 
-    // Check user exists
     const result = await pool.query(
       'SELECT id, name, email FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     const user = result.rows[0];
 
-    // Return generic success even if user not found for security
     if (!user) {
       return res.json({ message: 'If this email exists, a verification code has been sent.' });
     }
 
-    // Cooldown check (prevent spam within 30 seconds)
     const recent = await pool.query(
       `SELECT created_at FROM otp_verifications 
        WHERE email = $1 
@@ -413,13 +232,11 @@ router.post('/forgot-password', async (req, res) => {
       }
     }
 
-    // Delete old OTPs for this email
     await pool.query(
       'DELETE FROM otp_verifications WHERE email = $1',
       [email.toLowerCase()]
     );
 
-    // Generate and store new OTP
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -428,7 +245,6 @@ router.post('/forgot-password', async (req, res) => {
       [email.toLowerCase(), otp, expiresAt]
     );
 
-    // Send email
     await sendOTPEmail(user.email, user.name, otp, 'reset');
 
     res.json({
@@ -507,7 +323,6 @@ router.post('/reset-password', async (req, res) => {
     if (newPassword.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
-    // Find valid OTP
     const otpRecord = await pool.query(
       `SELECT * FROM otp_verifications
        WHERE email = $1 AND used = false
@@ -526,13 +341,11 @@ router.post('/reset-password', async (req, res) => {
     if (record.otp !== otp.trim())
       return res.status(400).json({ error: 'Incorrect OTP.' });
 
-    // Mark OTP as used
     await pool.query(
       'UPDATE otp_verifications SET used = true WHERE id = $1',
       [record.id]
     );
 
-    // Update password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
     await pool.query(
       'UPDATE users SET password = $1 WHERE email = $2',
